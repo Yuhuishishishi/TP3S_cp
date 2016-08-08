@@ -28,7 +28,7 @@ public class DataInstance {
 
     public static DataInstance getInstance() {
         if (DataInstance.instance == null) {
-            DataInstance.instance = new DataInstance();
+            System.err.println("Data instance called while uninitialized.");
         }
 
         return DataInstance.instance;
