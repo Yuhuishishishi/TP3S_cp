@@ -32,11 +32,15 @@ public class Reader {
             JSONObject testObj = (JSONObject) aTestArr;
 
             int tid = ((Long) testObj.get("test_id")).intValue();
-            int dur = ((Long) testObj.get("dur")).intValue();
+            int prep = ((Long) testObj.get("prep")).intValue();
+            int tat = ((Long) testObj.get("tat")).intValue();
+            int analysis = ((Long) testObj.get("analysis")).intValue();
+
             int release = ((Long) testObj.get("release")).intValue();
             int deadline = ((Long) testObj.get("deadline")).intValue();
 
-            TestRequest newTest = new TestRequest(tid, release, dur, deadline);
+            TestRequest newTest = new TestRequest(tid, release,
+                    prep, tat, analysis, deadline);
             testList.add(newTest);
         }
 

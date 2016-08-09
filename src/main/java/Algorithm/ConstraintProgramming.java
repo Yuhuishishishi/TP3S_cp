@@ -1,4 +1,4 @@
-package Algorithm;
+package algorithm;
 
 
 import data.DataInstance;
@@ -162,6 +162,13 @@ public class ConstraintProgramming {
                 }
             }
         }
+
+        IloCumulFunctionExpr cbbUsage = model.cumulFunctionExpr();
+        for (int i = 0; i < numTest; i++) {
+            cbbUsage = model.sum(cbbUsage, model.pulse(intervalVarsAux[i],1));
+        }
+        model.add(model.le(cbbUsage, 15));
+
         return model;
     }
 }
