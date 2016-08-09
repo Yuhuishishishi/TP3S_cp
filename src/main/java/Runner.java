@@ -15,7 +15,7 @@ import java.util.Map;
 public class Runner {
 
     public static void main(String[] args) {
-        String filepath = "C:\\Users\\yuhui\\Desktop\\TP3S_cp\\data\\158 - orig.tp3s";
+        String filepath = "C:\\Users\\yuhui\\Desktop\\TP3S_cp\\data\\157 - orig.tp3s";
 
         Reader jsonReader = new Reader(filepath);
         List<TestRequest> testArr;
