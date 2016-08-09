@@ -1,4 +1,4 @@
-import algorithm.ConstraintProgramming;
+import Algorithm.ConstraintProgramming;
 import data.DataInstance;
 import data.Reader;
 import data.TestRequest;
