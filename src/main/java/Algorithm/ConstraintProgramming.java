@@ -16,10 +16,10 @@ import java.util.List;
 public class ConstraintProgramming {
 
     private IloIntervalVar[][] intervalVars;
-    private IloIntervalVar[][] prepVars;
-    private IloIntervalVar[][] tatVars;
-    private IloIntervalVar[][] analysisVars;
     private IloIntervalVar[] intervalVarsAux;
+    private IloIntervalVar[] prepVars;
+    private IloIntervalVar[] tatVars;
+    private IloIntervalVar[] analysisVars;
 
     public void solve() {
 
@@ -39,7 +39,7 @@ public class ConstraintProgramming {
 
     }
 
-    private void printSol(IloCP model) {
+    private void printSol(IloCP model) throws IloException {
         List<TestRequest> testArr = DataInstance.getInstance().getTestArr();
         List<Vehicle> vehicleArr = DataInstance.getInstance().getVehicleArr();
 
@@ -55,10 +55,19 @@ public class ConstraintProgramming {
                             "\t start: " + model.getStart(intervalVars[i][v]) + "" +
                             " end: " + model.getEnd(intervalVars[i][v]) + "" +
                             " dur: " + testArr.get(i).getDur());
-                    break;
+
                 }
 
+
             }
+            System.out.println("Test " + testArr.get(i).getTid() + "" +
+                    model.getDomain(intervalVarsAux[i]));
+            System.out.println("Test prep" + testArr.get(i).getTid() + "" +
+                    model.getDomain(prepVars[i]));
+            System.out.println("Test tat" + testArr.get(i).getTid() + "" +
+                    model.getDomain(tatVars[i]));
+            System.out.println("Test analysis" + testArr.get(i).getTid() + "" +
+                    model.getDomain(analysisVars[i]));
         }
 
         System.out.println("==========================================");
@@ -89,36 +98,29 @@ public class ConstraintProgramming {
         final int numVehicle = vehicleArr.size();
 
         final int deadlineSlack = 20;
-        final int cbbCap = 3;
-        final int roushCap = 15;
+        final int cbbCap = 5;
+        final int roushCap = 30;
 
         // decision variables
         intervalVars = new IloIntervalVar[numTest][numVehicle];
-        prepVars = new IloIntervalVar[numTest][numVehicle];
-        tatVars = new IloIntervalVar[numTest][numVehicle];
-        analysisVars = new IloIntervalVar[numTest][numVehicle];
         intervalVarsAux = new IloIntervalVar[numTest];
+        prepVars = new IloIntervalVar[numTest];
+        tatVars = new IloIntervalVar[numTest];
+        analysisVars = new IloIntervalVar[numTest];
 
 
         // initialization of interval variables
         for (int i = 0; i < numTest; i++) {
             TestRequest test = testArr.get(i);
             intervalVarsAux[i] = model.intervalVar();
+            prepVars[i] = model.intervalVar(test.getPrep(), "test " +  test.getTid() + " prep");
+            tatVars[i] = model.intervalVar(test.getTat(), "test " + test.getTid() + " tat");
+            analysisVars[i] = model.intervalVar(test.getAnalysis(), "test " + test.getTid() + " analysis");
+
             for (int v = 0; v < numVehicle; v++) {
                 Vehicle vehicle = vehicleArr.get(v);
-                intervalVars[i][v] = model.intervalVar("test " + test.getTid() + " on vehicle " + vehicle.getVid() );
-
-                prepVars[i][v] = model.intervalVar(test.getPrep(),
-                        "prep of test " + test.getTid() + " on vehicle " + vehicle.getVid());
-                tatVars[i][v] = model.intervalVar(test.getTat(),
-                        "tat of test " + test.getTid() + " on vehicle " + vehicle.getVid());
-                analysisVars[i][v] = model.intervalVar(test.getAnalysis(),
-                        "analysis of test " + test.getTid() + " on vehicle " + vehicle.getVid());
-
+                intervalVars[i][v] = model.intervalVar(test.getDur(), "test " + test.getTid() + " on vehicle " + vehicle.getVid() );
                 intervalVars[i][v].setOptional();
-                prepVars[i][v].setOptional();
-                tatVars[i][v].setOptional();
-                analysisVars[i][v].setOptional();
             }
         }
 
@@ -126,35 +128,25 @@ public class ConstraintProgramming {
 
         // relations between intervals
         for (int i = 0; i < numTest; i++) {
-            for (int v = 0; v < numVehicle; v++) {
-                // prep before tat
-                model.add(model.endAtStart(prepVars[i][v], tatVars[i][v]));
-                // tat before analysis
-                model.add(model.endAtStart(tatVars[i][v], analysisVars[i][v]));
-                // chain of presence
-                model.add(model.equiv(model.presenceOf(prepVars[i][v]),
-                        model.presenceOf(tatVars[i][v])));
-                model.add(model.equiv(model.presenceOf(tatVars[i][v]),
-                        model.presenceOf(analysisVars[i][v])));
-                model.add(model.equiv(model.presenceOf(prepVars[i][v]),
-                        model.presenceOf(analysisVars[i][v])));
+            // prep before tat, tat before analysis
+            model.add(model.endAtStart(prepVars[i], tatVars[i]));
+            model.add(model.endAtStart(tatVars[i], analysisVars[i]));
 
-                // span constraints
-                model.add(model.span(intervalVars[i][v],
-                        new IloIntervalVar[] {prepVars[i][v], tatVars[i][v], analysisVars[i][v]}));
-            }
+            // span constraints
+//            model.add(model.span(intervalVarsAux[i],
+//                    new IloIntervalVar[]{prepVars[i], tatVars[i], analysisVars[i]}));
+            model.add(model.startAtStart(prepVars[i], intervalVarsAux[i]));
+
         }
 
         // time window constraints
         for (int i = 0; i < numTest; i++) {
             TestRequest test = testArr.get(i);
-            for (int v = 0; v < numVehicle; v++) {
-//                intervalVars[i][v].setStartMin(test.getRelease());
-                tatVars[i][v].setStartMin(test.getRelease());
-                intervalVars[i][v].setEndMax(test.getDeadline() + deadlineSlack);
-            }
+
+            tatVars[i].setStartMin(test.getRelease());
+//            intervalVars[i][v].setEndMax(test.getDeadline() + deadlineSlack);
 //            intervalVarsAux[i].setStartMin(test.getRelease());
-//            intervalVarsAux[i].setEndMax(test.getDeadline() + deadlineSlack);
+            intervalVarsAux[i].setEndMax(test.getDeadline() + deadlineSlack);
         }
 
         // vehicle release time
@@ -210,12 +202,12 @@ public class ConstraintProgramming {
         IloCumulFunctionExpr roushUsage = model.cumulFunctionExpr();
 
         for (int i = 0; i < numTest; i++) {
-            for (int v = 0; v < numVehicle; v++) {
+
                 cbbUsage = model.sum(cbbUsage,
-                        model.pulse(tatVars[i][v], 1));
+                        model.pulse(tatVars[i], 1));
                 roushUsage = model.sum(roushUsage,
-                        model.pulse(prepVars[i][v], 1));
-            }
+                        model.pulse(prepVars[i], 1));
+
         }
 
         // global resource constraints
